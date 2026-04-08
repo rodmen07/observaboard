@@ -1,42 +1,13 @@
-from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.core.paginator import Paginator
 from django.db.models import Count, F
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 
 from events.models import ApiKey, Event
 
 
-def login_view(request):
-    if request.user.is_authenticated:
-        return redirect("dashboard:index")
-
-    if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            next_url = request.POST.get("next") or request.GET.get("next") or "dashboard:index"
-            # Only redirect to safe internal URLs
-            if next_url.startswith("/"):
-                return redirect(next_url)
-            return redirect("dashboard:index")
-        # Return form with error
-        return render(request, "dashboard/login.html", {"form": {"errors": True}, "next": request.GET.get("next")})
-
-    return render(request, "dashboard/login.html", {"next": request.GET.get("next")})
-
-
-def logout_view(request):
-    if request.method == "POST":
-        logout(request)
-    return redirect("dashboard:login")
-
-
-@login_required
 def index(request):
     categories = (
         Event.objects.exclude(category="")
@@ -61,7 +32,6 @@ def index(request):
     })
 
 
-@login_required
 def events_list(request):
     qs = Event.objects.all()
 
@@ -108,7 +78,6 @@ def events_list(request):
     return render(request, "dashboard/events_list.html", context)
 
 
-@login_required
 def event_detail(request, pk):
     event = get_object_or_404(Event, pk=pk)
     return render(request, "dashboard/event_detail.html", {
