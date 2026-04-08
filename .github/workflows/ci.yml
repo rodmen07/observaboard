@@ -43,6 +43,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Collect static files
+        run: python manage.py collectstatic --noinput
+        env:
+          SECRET_KEY: test-secret-key-ci-only
+
       - name: Run tests
         run: pytest --cov --cov-report=xml -q
         env:
