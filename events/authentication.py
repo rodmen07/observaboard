@@ -43,6 +43,7 @@ class ApiKeyAuthentication(BaseAuthentication):
         class ApiKeyUser:
             is_authenticated = True
             is_active = True
+            is_staff = False
             pk = None
 
             def __init__(self, name):

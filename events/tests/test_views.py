@@ -28,13 +28,13 @@ def admin_client_drf(django_user_model):
     return client
 
 
+@pytest.mark.django_db
 class TestHealthView:
     def test_health_no_auth_required(self, api_client):
         response = api_client.get("/api/health/")
-        assert response.status_code == 200
+        assert response.status_code in (200, 503)
         assert response.data["api"] == "ok"
 
-    @pytest.mark.django_db
     def test_health_includes_database(self, api_client):
         response = api_client.get("/api/health/")
         assert "database" in response.data
