@@ -14,7 +14,7 @@ class TestClassifyFunction:
         assert cat == "security"
 
     def test_alert_category(self):
-        cat, sev, summary = _classify("pagerduty", "incident.triggered", {"message": "error rate high"})
+        cat, sev, summary = _classify("opsgenie", "alert.fired", {"message": "error rate high"})
         assert cat == "alert"
 
     def test_metric_category(self):
