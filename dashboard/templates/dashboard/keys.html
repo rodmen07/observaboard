@@ -1,0 +1,60 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags %}
+
+{% block title %}API Keys — Observaboard{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-white">API Keys</h1>
+    <p class="text-sm text-gray-500 mt-1">Manage API keys for event ingestion</p>
+  </div>
+</div>
+
+<!-- Create key form -->
+<div class="mb-6">
+  <form hx-post="{% url 'dashboard:key_create' %}"
+        hx-target="#keys-tbody"
+        hx-swap="afterbegin"
+        hx-on::after-request="if(event.detail.successful) this.reset()"
+        class="flex gap-3">
+    {% csrf_token %}
+    <input type="text" name="name" required placeholder="Key name (e.g. github-webhook)"
+           class="flex-1 max-w-sm rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-white
+                  placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+    <button type="submit"
+            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white
+                   hover:bg-indigo-500 transition-colors">
+      Create Key
+    </button>
+  </form>
+</div>
+
+<!-- Newly created key alert (shown via HTMX response header) -->
+<div id="new-key-alert" class="mb-4"></div>
+
+<!-- Keys table -->
+<div class="rounded-xl border border-gray-800 overflow-hidden">
+  <table class="data-table">
+    <thead class="bg-gray-900/50">
+      <tr>
+        <th>Name</th>
+        <th>Key</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Last Used</th>
+        <th class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="keys-tbody">
+      {% for key in keys %}
+      {% include "dashboard/_key_row.html" with key=key %}
+      {% empty %}
+      <tr id="empty-row">
+        <td colspan="6" class="text-center text-gray-500 py-8">No API keys created yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

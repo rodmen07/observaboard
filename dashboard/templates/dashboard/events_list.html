@@ -1,0 +1,72 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags %}
+
+{% block title %}Events — Observaboard{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold text-white">Events</h1>
+  <p class="text-sm text-gray-500 mt-1">{{ total_count }} event{{ total_count|pluralize }} total</p>
+</div>
+
+<!-- Filters -->
+<div class="flex flex-wrap gap-3 mb-4">
+  <input type="text" name="q" value="{{ current_filters.q }}"
+         placeholder="Search events..."
+         hx-get="{% url 'dashboard:events_list' %}"
+         hx-trigger="keyup changed delay:300ms"
+         hx-target="#events-table"
+         hx-include="[name='source'],[name='category'],[name='severity']"
+         hx-push-url="true"
+         class="rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-white
+                placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500
+                focus:border-transparent w-full sm:w-64">
+
+  <select name="source"
+          hx-get="{% url 'dashboard:events_list' %}"
+          hx-trigger="change"
+          hx-target="#events-table"
+          hx-include="[name='q'],[name='category'],[name='severity']"
+          hx-push-url="true"
+          class="rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-white
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+    <option value="">All sources</option>
+    {% for s in sources %}
+    <option value="{{ s }}" {% if current_filters.source == s %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="category"
+          hx-get="{% url 'dashboard:events_list' %}"
+          hx-trigger="change"
+          hx-target="#events-table"
+          hx-include="[name='q'],[name='source'],[name='severity']"
+          hx-push-url="true"
+          class="rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-white
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+    <option value="">All categories</option>
+    {% for c in category_choices %}
+    <option value="{{ c.0 }}" {% if current_filters.category == c.0 %}selected{% endif %}>{{ c.1 }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="severity"
+          hx-get="{% url 'dashboard:events_list' %}"
+          hx-trigger="change"
+          hx-target="#events-table"
+          hx-include="[name='q'],[name='source'],[name='category']"
+          hx-push-url="true"
+          class="rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-white
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+    <option value="">All severities</option>
+    {% for s in severity_choices %}
+    <option value="{{ s.0 }}" {% if current_filters.severity == s.0 %}selected{% endif %}>{{ s.1 }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- Events table -->
+<div id="events-table">
+  {% include "dashboard/_events_table.html" %}
+</div>
+{% endblock %}

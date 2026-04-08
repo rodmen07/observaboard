@@ -1,6 +1,10 @@
 import json
+import logging
+
 from celery import shared_task
 from django.contrib.postgres.search import SearchVector
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +53,13 @@ def _classify(source: str, event_type: str, payload: dict) -> tuple[str, str, st
     return category, severity, summary
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=10)
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=120,
+)
 def classify_event(self, event_id: str):
     """
     Classify an ingested event and update its search vector.
@@ -57,25 +67,31 @@ def classify_event(self, event_id: str):
     """
     from .models import Event
 
+    logger.info("Classifying event %s", event_id)
+
     try:
         event = Event.objects.get(id=event_id)
     except Event.DoesNotExist:
-        return  # already deleted — nothing to do
+        logger.warning("Event %s not found, skipping classification", event_id)
+        return
 
-    category, severity, summary = _classify(
-        event.source, event.event_type, event.raw_payload
-    )
+    try:
+        category, severity, summary = _classify(
+            event.source, event.event_type, event.raw_payload
+        )
 
-    # Build search vector from structured fields + JSON payload text
-    payload_text = json.dumps(event.raw_payload)
-    Event.objects.filter(id=event_id).update(
-        classified=True,
-        category=category,
-        severity=severity,
-        summary=summary,
-        search_vector=(
-            SearchVector("source", weight="A")
-            + SearchVector("event_type", weight="A")
-            + SearchVector("summary", weight="B")
-        ),
-    )
+        Event.objects.filter(id=event_id).update(
+            classified=True,
+            category=category,
+            severity=severity,
+            summary=summary,
+            search_vector=(
+                SearchVector("source", weight="A")
+                + SearchVector("event_type", weight="A")
+                + SearchVector("summary", weight="B")
+            ),
+        )
+        logger.info("Classified event %s as %s/%s", event_id, category, severity)
+    except Exception as exc:
+        logger.exception("Failed to classify event %s", event_id)
+        raise self.retry(exc=exc)

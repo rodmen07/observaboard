@@ -1,5 +1,12 @@
+import logging
+
+from django.conf import settings as django_settings
 from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.db import connection
 from django.db.models import F
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_control
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
@@ -10,15 +17,38 @@ from .models import Event, ApiKey
 from .serializers import EventSerializer, IngestSerializer, ApiKeySerializer
 from .tasks import classify_event
 
+logger = logging.getLogger(__name__)
 
+
+@extend_schema(tags=["health"])
 class HealthView(APIView):
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(summary="Health check", description="Returns status of API, database, and Redis.")
     def get(self, request):
-        return Response({"status": "ok"})
+        checks = {"api": "ok"}
+
+        try:
+            connection.ensure_connection()
+            checks["database"] = "ok"
+        except Exception:
+            checks["database"] = "error"
+
+        try:
+            import redis
+            r = redis.from_url(django_settings.CELERY_BROKER_URL)
+            r.ping()
+            checks["redis"] = "ok"
+        except Exception:
+            checks["redis"] = "error"
+
+        overall = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
+        status_code = 200 if overall == "ok" else 503
+        return Response({"status": overall, **checks}, status=status_code)
 
 
+@extend_schema(tags=["ingest"])
 class IngestView(APIView):
     """
     POST /api/ingest/
@@ -26,7 +56,9 @@ class IngestView(APIView):
     Immediately stores the raw event, then enqueues async classification.
     """
     permission_classes = [IsAuthenticated]
+    throttle_scope = "ingest"
 
+    @extend_schema(request=IngestSerializer, responses={202: EventSerializer}, summary="Ingest event")
     def post(self, request):
         serializer = IngestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -40,12 +72,16 @@ class IngestView(APIView):
 
         classify_event.delay(str(event.id))
 
+        logger.info("Ingested event %s from %s (%s)", event.id, data["source"], data["event_type"])
+
         return Response(
             {"id": str(event.id), "status": "accepted"},
             status=status.HTTP_202_ACCEPTED,
         )
 
 
+@method_decorator(cache_control(private=True, max_age=30), name="dispatch")
+@extend_schema(tags=["events"])
 class EventListView(ListAPIView):
     """GET /api/events/  — paginated list, filterable by source/category/severity."""
     serializer_class = EventSerializer
@@ -62,6 +98,8 @@ class EventListView(ListAPIView):
         return qs
 
 
+@method_decorator(cache_control(private=True, max_age=30), name="dispatch")
+@extend_schema(tags=["events"])
 class EventDetailView(RetrieveAPIView):
     """GET /api/events/<uuid>/"""
     serializer_class = EventSerializer
@@ -69,6 +107,10 @@ class EventDetailView(RetrieveAPIView):
     queryset = Event.objects.all()
 
 
+@extend_schema(
+    tags=["events"],
+    parameters=[OpenApiParameter("q", str, description="Full-text search query")],
+)
 class EventSearchView(ListAPIView):
     """
     GET /api/events/search/?q=<query>
@@ -77,6 +119,7 @@ class EventSearchView(ListAPIView):
     """
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
+    throttle_scope = "search"
 
     def get_queryset(self):
         q = self.request.query_params.get("q", "").strip()
@@ -91,6 +134,7 @@ class EventSearchView(ListAPIView):
         )
 
 
+@extend_schema(tags=["api-keys"])
 class ApiKeyListCreateView(APIView):
     """GET/POST /api/keys/  — admin only."""
     permission_classes = [IsAdminUser]
@@ -106,6 +150,7 @@ class ApiKeyListCreateView(APIView):
         return Response(ApiKeySerializer(api_key).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(tags=["api-keys"])
 class ApiKeyDetailView(APIView):
     """PATCH/DELETE /api/keys/<pk>/  — admin only (revoke / rename)."""
     permission_classes = [IsAdminUser]

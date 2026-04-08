@@ -1,0 +1,99 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags %}
+
+{% block title %}Dashboard — Observaboard{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold text-white">Dashboard</h1>
+  <p class="text-sm text-gray-500 mt-1">Overview of ingested events</p>
+</div>
+
+<!-- Total events -->
+<div class="stat-card mb-6">
+  <div class="text-sm font-medium text-gray-400">Total Events</div>
+  <div class="text-3xl font-bold text-white mt-1">{{ total_events }}</div>
+</div>
+
+<!-- Category breakdown -->
+<div class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">By Category</h2>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    {% for cat in categories %}
+    <div class="stat-card">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="badge {{ cat.category|category_class }}">{{ cat.category }}</span>
+      </div>
+      <div class="text-2xl font-bold text-white">{{ cat.count }}</div>
+    </div>
+    {% empty %}
+    <div class="col-span-full text-sm text-gray-500">No events yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Severity breakdown -->
+<div class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">By Severity</h2>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    {% for sev in severities %}
+    <div class="stat-card">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="badge {{ sev.severity|severity_class }}">{{ sev.severity }}</span>
+      </div>
+      <div class="text-2xl font-bold text-white">{{ sev.count }}</div>
+    </div>
+    {% empty %}
+    <div class="col-span-full text-sm text-gray-500">No events yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Recent events -->
+<div>
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Recent Events</h2>
+    <a href="{% url 'dashboard:events_list' %}" class="text-sm text-indigo-400 hover:text-indigo-300">View all &rarr;</a>
+  </div>
+  <div class="rounded-xl border border-gray-800 overflow-hidden">
+    <table class="data-table">
+      <thead class="bg-gray-900/50">
+        <tr>
+          <th>Time</th>
+          <th>Source</th>
+          <th>Type</th>
+          <th>Category</th>
+          <th>Severity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in recent_events %}
+        <tr>
+          <td class="whitespace-nowrap text-gray-500">{{ event.created_at|timesince }} ago</td>
+          <td>
+            <a href="{% url 'dashboard:event_detail' event.pk %}" class="text-indigo-400 hover:text-indigo-300">
+              {{ event.source }}
+            </a>
+          </td>
+          <td class="text-gray-400">{{ event.event_type }}</td>
+          <td>
+            {% if event.category %}
+            <span class="badge {{ event.category|category_class }}">{{ event.category }}</span>
+            {% else %}
+            <span class="text-gray-600">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {{ event.severity|severity_class }}">{{ event.severity }}</span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-gray-500 py-8">No events ingested yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

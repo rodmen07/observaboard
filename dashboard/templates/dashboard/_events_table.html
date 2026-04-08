@@ -1,0 +1,74 @@
+{% load dashboard_tags %}
+
+<div class="rounded-xl border border-gray-800 overflow-hidden">
+  <table class="data-table">
+    <thead class="bg-gray-900/50">
+      <tr>
+        <th>Time</th>
+        <th>Source</th>
+        <th>Type</th>
+        <th>Category</th>
+        <th>Severity</th>
+        <th>Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for event in page_obj %}
+      <tr>
+        <td class="whitespace-nowrap text-gray-500 text-xs">{{ event.created_at|timesince }} ago</td>
+        <td>
+          <a href="{% url 'dashboard:event_detail' event.pk %}" class="text-indigo-400 hover:text-indigo-300">
+            {{ event.source }}
+          </a>
+        </td>
+        <td class="text-gray-400">{{ event.event_type }}</td>
+        <td>
+          {% if event.category %}
+          <span class="badge {{ event.category|category_class }}">{{ event.category }}</span>
+          {% else %}
+          <span class="text-gray-600">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="badge {{ event.severity|severity_class }}">{{ event.severity }}</span>
+        </td>
+        <td class="text-gray-400 max-w-xs truncate">{{ event.summary|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="text-center text-gray-500 py-8">No events match your filters.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex items-center justify-between mt-4">
+  <div class="text-sm text-gray-500">
+    Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+  </div>
+  <div class="flex gap-1">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% for k, v in current_filters.items %}{% if v %}&{{ k }}={{ v }}{% endif %}{% endfor %}"
+       hx-get="{% url 'dashboard:events_list' %}?page={{ page_obj.previous_page_number }}{% for k, v in current_filters.items %}{% if v %}&{{ k }}={{ v }}{% endif %}{% endfor %}"
+       hx-target="#events-table"
+       class="px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white bg-gray-900 border border-gray-700 hover:border-gray-600 transition-colors">
+      Previous
+    </a>
+    {% endif %}
+    <span class="px-3 py-1.5 text-sm text-gray-400">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% for k, v in current_filters.items %}{% if v %}&{{ k }}={{ v }}{% endif %}{% endfor %}"
+       hx-get="{% url 'dashboard:events_list' %}?page={{ page_obj.next_page_number }}{% for k, v in current_filters.items %}{% if v %}&{{ k }}={{ v }}{% endif %}{% endfor %}"
+       hx-target="#events-table"
+       class="px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white bg-gray-900 border border-gray-700 hover:border-gray-600 transition-colors">
+      Next
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

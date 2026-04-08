@@ -1,8 +1,12 @@
+import logging
+
 from django.utils import timezone
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
 from .models import ApiKey
+
+logger = logging.getLogger(__name__)
 
 
 class ApiKeyAuthentication(BaseAuthentication):
@@ -24,6 +28,7 @@ class ApiKeyAuthentication(BaseAuthentication):
         try:
             api_key = ApiKey.objects.get(key=raw_key, is_active=True)
         except ApiKey.DoesNotExist:
+            logger.warning("Invalid API key attempt")
             raise AuthenticationFailed("Invalid or revoked API key.")
 
         api_key.last_used_at = timezone.now()

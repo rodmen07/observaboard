@@ -1,0 +1,47 @@
+{% load dashboard_tags %}
+
+<tr id="key-row-{{ key.pk }}">
+  <td class="font-medium text-gray-200">{{ key.name }}</td>
+  <td>
+    <code class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
+      {% if show_full_key %}{{ key.key }}{% else %}{{ key.key|mask_key }}{% endif %}
+    </code>
+  </td>
+  <td>
+    {% if key.is_active %}
+    <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active
+    </span>
+    {% else %}
+    <span class="inline-flex items-center gap-1 text-xs font-medium text-red-400">
+      <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Revoked
+    </span>
+    {% endif %}
+  </td>
+  <td class="text-gray-500 text-xs whitespace-nowrap">{{ key.created_at|timesince }} ago</td>
+  <td class="text-gray-500 text-xs whitespace-nowrap">
+    {% if key.last_used_at %}{{ key.last_used_at|timesince }} ago{% else %}Never{% endif %}
+  </td>
+  <td class="text-right">
+    <div class="flex items-center justify-end gap-2">
+      <button hx-post="{% url 'dashboard:key_toggle' key.pk %}"
+              hx-target="#key-row-{{ key.pk }}"
+              hx-swap="outerHTML"
+              class="text-xs px-2.5 py-1 rounded-md border transition-colors
+                {% if key.is_active %}
+                  border-amber-700 text-amber-400 hover:bg-amber-900/30
+                {% else %}
+                  border-emerald-700 text-emerald-400 hover:bg-emerald-900/30
+                {% endif %}">
+        {% if key.is_active %}Revoke{% else %}Activate{% endif %}
+      </button>
+      <button hx-post="{% url 'dashboard:key_delete' key.pk %}"
+              hx-target="#key-row-{{ key.pk }}"
+              hx-swap="outerHTML"
+              hx-confirm="Delete API key '{{ key.name }}'? This cannot be undone."
+              class="text-xs px-2.5 py-1 rounded-md border border-red-800 text-red-400 hover:bg-red-900/30 transition-colors">
+        Delete
+      </button>
+    </div>
+  </td>
+</tr>
