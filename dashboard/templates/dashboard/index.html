@@ -4,20 +4,36 @@
 {% block title %}Dashboard — Observaboard{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-semibold text-white">Dashboard</h1>
-  <p class="text-sm text-gray-500 mt-1">Overview of ingested events</p>
+<!-- Project intro -->
+<div class="mb-8 rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+  <h1 class="text-2xl font-semibold text-white mb-2">Observaboard</h1>
+  <p class="text-gray-400 leading-relaxed">
+    A centralized observability hub that ingests webhook events from tools like GitHub, PagerDuty, Sentry, and Datadog
+    via a REST API. Each event is asynchronously classified by a Celery worker into a category and severity level,
+    then indexed for full-text search via PostgreSQL.
+  </p>
+  <div class="flex flex-wrap gap-2 mt-4">
+    <span class="px-2.5 py-1 rounded-md bg-gray-800 text-xs text-gray-300 border border-gray-700">Django 5</span>
+    <span class="px-2.5 py-1 rounded-md bg-gray-800 text-xs text-gray-300 border border-gray-700">DRF</span>
+    <span class="px-2.5 py-1 rounded-md bg-gray-800 text-xs text-gray-300 border border-gray-700">HTMX</span>
+    <span class="px-2.5 py-1 rounded-md bg-gray-800 text-xs text-gray-300 border border-gray-700">Celery</span>
+    <span class="px-2.5 py-1 rounded-md bg-gray-800 text-xs text-gray-300 border border-gray-700">Redis</span>
+    <span class="px-2.5 py-1 rounded-md bg-gray-800 text-xs text-gray-300 border border-gray-700">PostgreSQL FTS</span>
+    <span class="px-2.5 py-1 rounded-md bg-gray-800 text-xs text-gray-300 border border-gray-700">Fly.io</span>
+  </div>
 </div>
 
 <!-- Total events -->
 <div class="stat-card mb-6">
-  <div class="text-sm font-medium text-gray-400">Total Events</div>
+  <div class="text-sm font-medium text-gray-400">Total Ingested Events</div>
   <div class="text-3xl font-bold text-white mt-1">{{ total_events }}</div>
+  <p class="text-xs text-gray-500 mt-1">Received via <code class="text-gray-400">POST /api/ingest/</code> and classified by Celery</p>
 </div>
 
 <!-- Category breakdown -->
 <div class="mb-8">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">By Category</h2>
+  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">By Category</h2>
+  <p class="text-xs text-gray-500 mb-3">Assigned automatically by keyword matching against source, event type, and payload</p>
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
     {% for cat in categories %}
     <div class="stat-card">
@@ -34,7 +50,8 @@
 
 <!-- Severity breakdown -->
 <div class="mb-8">
-  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">By Severity</h2>
+  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">By Severity</h2>
+  <p class="text-xs text-gray-500 mb-3">Derived from payload heuristics — keywords like "outage" or "error" escalate severity</p>
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
     {% for sev in severities %}
     <div class="stat-card">
@@ -51,10 +68,11 @@
 
 <!-- Recent events -->
 <div>
-  <div class="flex items-center justify-between mb-3">
+  <div class="flex items-center justify-between mb-1">
     <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Recent Events</h2>
     <a href="{% url 'dashboard:events_list' %}" class="text-sm text-indigo-400 hover:text-indigo-300">View all &rarr;</a>
   </div>
+  <p class="text-xs text-gray-500 mb-3">Click any source to see the full event detail and raw JSON payload</p>
   <div class="rounded-xl border border-gray-800 overflow-hidden">
     <table class="data-table">
       <thead class="bg-gray-900/50">
@@ -64,6 +82,7 @@
           <th>Type</th>
           <th>Category</th>
           <th>Severity</th>
+          <th class="hidden xl:table-cell">Summary</th>
         </tr>
       </thead>
       <tbody>
@@ -80,16 +99,17 @@
             {% if event.category %}
             <span class="badge {{ event.category|category_class }}">{{ event.category }}</span>
             {% else %}
-            <span class="text-gray-600">—</span>
+            <span class="text-gray-600">&mdash;</span>
             {% endif %}
           </td>
           <td>
             <span class="badge {{ event.severity|severity_class }}">{{ event.severity }}</span>
           </td>
+          <td class="hidden xl:table-cell text-gray-400 max-w-xs truncate">{{ event.summary|default:"—" }}</td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="5" class="text-center text-gray-500 py-8">No events ingested yet.</td>
+          <td colspan="6" class="text-center text-gray-500 py-8">No events ingested yet.</td>
         </tr>
         {% endfor %}
       </tbody>

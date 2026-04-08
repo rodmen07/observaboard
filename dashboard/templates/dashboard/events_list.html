@@ -6,7 +6,8 @@
 {% block content %}
 <div class="mb-6">
   <h1 class="text-2xl font-semibold text-white">Events</h1>
-  <p class="text-sm text-gray-500 mt-1">{{ total_count }} event{{ total_count|pluralize }} total</p>
+  <p class="text-sm text-gray-400 mt-1">{{ total_count }} event{{ total_count|pluralize }} ingested from {{ sources|length }} source{{ sources|length|pluralize }}</p>
+  <p class="text-xs text-gray-500 mt-1">Filter by source, category, or severity. All filters use HTMX &mdash; the table updates without a full page reload.</p>
 </div>
 
 <!-- Filters -->
