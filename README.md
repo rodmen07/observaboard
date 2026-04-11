@@ -15,7 +15,7 @@ Observability event ingestion and management platform. Accepts webhook events fr
                     └─────┬─────┘
                           │
                    ┌──────▼───────┐
-                   │ Celery Worker │ ── classify events
+                   │ Celery Worker│ ── classify events
                    └──────┬───────┘
                           │
                    ┌──────▼───────┐
