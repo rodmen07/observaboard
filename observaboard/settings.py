@@ -1,6 +1,7 @@
 from pathlib import Path
-from decouple import config
+
 import dj_database_url
+from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -205,6 +206,11 @@ LOGGING = {
         "dashboard": {"level": "DEBUG" if DEBUG else "INFO"},
     },
 }
+
+# ---------------------------------------------------------------------------
+# Authentication
+# ---------------------------------------------------------------------------
+LOGIN_URL = "/admin/login/"
 
 # ---------------------------------------------------------------------------
 # drf-spectacular (OpenAPI)

@@ -6,15 +6,15 @@ from django.db import connection
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_control
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView, RetrieveAPIView
 
-from .models import Event, ApiKey
-from .serializers import EventSerializer, IngestSerializer, ApiKeySerializer
+from .models import ApiKey, Event
+from .serializers import ApiKeySerializer, EventSerializer, IngestSerializer
 from .tasks import classify_event
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ class HealthView(APIView):
             connection.ensure_connection()
             checks["database"] = "ok"
         except Exception:
+            logger.exception("Health check: database connection failed")
             checks["database"] = "error"
 
         try:
@@ -41,6 +42,7 @@ class HealthView(APIView):
             r.ping()
             checks["redis"] = "ok"
         except Exception:
+            logger.exception("Health check: Redis ping failed")
             checks["redis"] = "error"
 
         overall = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
@@ -122,7 +124,7 @@ class EventSearchView(ListAPIView):
     throttle_scope = "search"
 
     def get_queryset(self):
-        q = self.request.query_params.get("q", "").strip()
+        q = self.request.query_params.get("q", "").strip()[:200]
         if not q:
             return Event.objects.none()
 

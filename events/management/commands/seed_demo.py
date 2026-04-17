@@ -116,7 +116,7 @@ class Command(BaseCommand):
         now = timezone.now()
         events_created = 0
 
-        for i, (source, event_type, payload) in enumerate(SCENARIOS):
+        for _i, (source, event_type, payload) in enumerate(SCENARIOS):
             # Spread events across the last 7 days with some randomness
             hours_ago = random.uniform(0, 168)  # 7 days in hours
             created_at = now - timedelta(hours=hours_ago)
@@ -158,6 +158,6 @@ class Command(BaseCommand):
             events_created += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f"\nSeeded {events_created} events across {len(set(s[0] for s in SCENARIOS))} sources."
+            f"\nSeeded {events_created} events across {len({s[0] for s in SCENARIOS})} sources."
         ))
         self.stdout.write("Login at /dashboard/ with admin / admin")

@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.core.paginator import Paginator
@@ -7,7 +9,12 @@ from django.shortcuts import get_object_or_404, render
 
 from events.models import ApiKey, Event
 
+logger = logging.getLogger(__name__)
 
+_MAX_SEARCH_QUERY_LEN = 200
+
+
+@login_required
 def index(request):
     categories = (
         Event.objects.exclude(category="")
@@ -32,11 +39,12 @@ def index(request):
     })
 
 
+@login_required
 def events_list(request):
     qs = Event.objects.all()
 
     filters = {
-        "q": request.GET.get("q", "").strip(),
+        "q": request.GET.get("q", "").strip()[:_MAX_SEARCH_QUERY_LEN],
         "source": request.GET.get("source", ""),
         "category": request.GET.get("category", ""),
         "severity": request.GET.get("severity", ""),
@@ -78,6 +86,7 @@ def events_list(request):
     return render(request, "dashboard/events_list.html", context)
 
 
+@login_required
 def event_detail(request, pk):
     event = get_object_or_404(Event, pk=pk)
     return render(request, "dashboard/event_detail.html", {

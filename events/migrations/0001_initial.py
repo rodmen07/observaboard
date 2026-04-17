@@ -1,4 +1,5 @@
 import uuid
+
 import django.contrib.postgres.indexes
 import django.contrib.postgres.search
 import django.db.models.deletion

@@ -1,6 +1,7 @@
 import pytest
 
 from events.tasks import _classify, classify_event
+
 from .factories import EventFactory
 
 

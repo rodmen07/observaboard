@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Event, ApiKey
+
+from .models import ApiKey, Event
 
 
 class EventSerializer(serializers.ModelSerializer):

@@ -10,6 +10,14 @@ def client():
 
 
 @pytest.fixture
+def regular_client(client, django_user_model):
+    """Authenticated (non-staff) client for views that require login."""
+    django_user_model.objects.create_user(username="viewer", password="viewpass")
+    client.login(username="viewer", password="viewpass")
+    return client
+
+
+@pytest.fixture
 def staff_client(client, django_user_model):
     django_user_model.objects.create_user(
         username="staffuser", password="staffpass", is_staff=True
@@ -20,60 +28,77 @@ def staff_client(client, django_user_model):
 
 @pytest.mark.django_db
 class TestIndexView:
-    def test_renders_without_login(self, client):
+    def test_redirects_without_login(self, client):
         response = client.get("/dashboard/")
+        assert response.status_code == 302
+        assert "/admin/login/" in response["Location"]
+
+    def test_renders_when_logged_in(self, regular_client):
+        response = regular_client.get("/dashboard/")
         assert response.status_code == 200
         assert b"Dashboard" in response.content
 
-    def test_renders_with_events(self, client):
+    def test_renders_with_events(self, regular_client):
         EventFactory.create_batch(3, category="alert", severity="high")
-        response = client.get("/dashboard/")
+        response = regular_client.get("/dashboard/")
         assert response.status_code == 200
         assert b"Dashboard" in response.content
 
-    def test_renders_empty(self, client):
-        response = client.get("/dashboard/")
+    def test_renders_empty(self, regular_client):
+        response = regular_client.get("/dashboard/")
         assert response.status_code == 200
 
 
 @pytest.mark.django_db
 class TestEventsListView:
-    def test_renders_without_login(self, client):
+    def test_redirects_without_login(self, client):
         response = client.get("/dashboard/events/")
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert "/admin/login/" in response["Location"]
 
-    def test_renders_events(self, client):
+    def test_renders_events(self, regular_client):
         EventFactory.create_batch(3)
-        response = client.get("/dashboard/events/")
+        response = regular_client.get("/dashboard/events/")
         assert response.status_code == 200
         assert b"Events" in response.content
 
-    def test_filter_by_source(self, client):
+    def test_filter_by_source(self, regular_client):
         EventFactory(source="github")
         EventFactory(source="sentry")
-        response = client.get("/dashboard/events/?source=github")
+        response = regular_client.get("/dashboard/events/?source=github")
         assert response.status_code == 200
 
-    def test_htmx_returns_partial(self, client):
+    def test_htmx_returns_partial(self, regular_client):
         EventFactory.create_batch(2)
-        response = client.get(
+        response = regular_client.get(
             "/dashboard/events/", HTTP_HX_REQUEST="true"
         )
         assert response.status_code == 200
         # Partial should not contain full base template
         assert b"<!DOCTYPE html>" not in response.content
 
+    def test_search_query_truncated(self, regular_client):
+        """Search queries beyond 200 chars should be silently trimmed."""
+        long_q = "x" * 300
+        response = regular_client.get(f"/dashboard/events/?q={long_q}")
+        assert response.status_code == 200
+
 
 @pytest.mark.django_db
 class TestEventDetailView:
-    def test_renders_event(self, client):
+    def test_redirects_without_login(self, client):
         event = EventFactory(source="github", raw_payload={"ref": "main"})
         response = client.get(f"/dashboard/events/{event.pk}/")
+        assert response.status_code == 302
+
+    def test_renders_event(self, regular_client):
+        event = EventFactory(source="github", raw_payload={"ref": "main"})
+        response = regular_client.get(f"/dashboard/events/{event.pk}/")
         assert response.status_code == 200
         assert b"github" in response.content
 
-    def test_nonexistent_event(self, client):
-        response = client.get(
+    def test_nonexistent_event(self, regular_client):
+        response = regular_client.get(
             "/dashboard/events/00000000-0000-0000-0000-000000000000/"
         )
         assert response.status_code == 404

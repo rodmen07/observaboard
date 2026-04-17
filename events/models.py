@@ -1,5 +1,6 @@
 import secrets
 import uuid
+
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.db import models
@@ -15,13 +16,13 @@ class ApiKey(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    def __str__(self):
+        return f"{self.name} ({'active' if self.is_active else 'revoked'})"
+
     def save(self, *args, **kwargs):
         if not self.key:
             self.key = secrets.token_hex(32)
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.name} ({'active' if self.is_active else 'revoked'})"
 
 
 class Event(models.Model):

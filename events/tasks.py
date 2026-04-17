@@ -1,8 +1,9 @@
 import json
 import logging
 
-from celery import shared_task
 from django.contrib.postgres.search import SearchVector
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 

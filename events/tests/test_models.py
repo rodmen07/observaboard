@@ -1,5 +1,7 @@
 import pytest
+
 from events.models import Event
+
 from .factories import ApiKeyFactory, EventFactory
 
 

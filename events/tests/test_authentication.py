@@ -3,6 +3,7 @@ from django.test import RequestFactory
 from rest_framework.exceptions import AuthenticationFailed
 
 from events.authentication import ApiKeyAuthentication
+
 from .factories import ApiKeyFactory
 
 

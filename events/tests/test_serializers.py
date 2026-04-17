@@ -1,6 +1,8 @@
 import pytest
-from events.serializers import EventSerializer, IngestSerializer, ApiKeySerializer
-from .factories import EventFactory, ApiKeyFactory
+
+from events.serializers import ApiKeySerializer, EventSerializer, IngestSerializer
+
+from .factories import ApiKeyFactory, EventFactory
 
 
 @pytest.mark.django_db
