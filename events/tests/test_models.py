@@ -1,5 +1,5 @@
 import pytest
-from events.models import ApiKey, Event
+from events.models import Event
 from .factories import ApiKeyFactory, EventFactory
 
 
@@ -21,7 +21,7 @@ class TestEvent:
         assert "push" in str(event)
 
     def test_ordering(self):
-        e1 = EventFactory()
+        EventFactory()  # creates earlier event for ordering check
         e2 = EventFactory()
         events = list(Event.objects.all())
         # Most recent first

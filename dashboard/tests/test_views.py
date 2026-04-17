@@ -11,7 +11,7 @@ def client():
 
 @pytest.fixture
 def staff_client(client, django_user_model):
-    user = django_user_model.objects.create_user(
+    django_user_model.objects.create_user(
         username="staffuser", password="staffpass", is_staff=True
     )
     client.login(username="staffuser", password="staffpass")

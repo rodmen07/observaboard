@@ -125,7 +125,7 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------------------------
 # SimpleJWT
 # ---------------------------------------------------------------------------
-from datetime import timedelta
+from datetime import timedelta  # noqa: E402
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),

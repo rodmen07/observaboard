@@ -1,5 +1,4 @@
 import pytest
-from rest_framework.exceptions import ValidationError
 from events.serializers import EventSerializer, IngestSerializer, ApiKeySerializer
 from .factories import EventFactory, ApiKeyFactory
 

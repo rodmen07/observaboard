@@ -110,7 +110,7 @@ class Command(BaseCommand):
             defaults={"is_active": False},
         )
         if created:
-            self.stdout.write(f"  Created revoked key: old-staging-key")
+            self.stdout.write("  Created revoked key: old-staging-key")
 
         # Events spread over the last 7 days
         now = timezone.now()
@@ -160,4 +160,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"\nSeeded {events_created} events across {len(set(s[0] for s in SCENARIOS))} sources."
         ))
-        self.stdout.write(f"Login at /dashboard/ with admin / admin")
+        self.stdout.write("Login at /dashboard/ with admin / admin")
