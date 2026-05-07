@@ -28,15 +28,15 @@ class Command(BaseCommand):
             if existing:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"API key '{name}' already exists (prefix: {existing.prefix}). "
+                        f"API key '{name}' already exists (id: {existing.pk}). "
                         "Retrieve the raw key from Secret Manager."
                     )
                 )
                 return
 
-        _, key = ApiKey.objects.create_key(name=name)
+        api_key = ApiKey.objects.create(name=name)
         self.stdout.write(self.style.SUCCESS(f"Created API key '{name}'."))
-        self.stdout.write(f"Raw key: {key}")
+        self.stdout.write(f"Raw key: {api_key.key}")
         self.stdout.write(
             self.style.WARNING(
                 "Store this key in Secret Manager as OBSERVABOARD_API_KEY immediately. "

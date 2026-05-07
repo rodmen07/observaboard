@@ -118,6 +118,14 @@ jobs:
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
+      - name: Resolve event stream URL
+        if: steps.deploy_config.outputs.enabled == 'true'
+        run: |
+          EVENT_STREAM_URL=$(gcloud run services describe event-stream-service \
+            --region="${{ env.GCP_REGION }}" \
+            --format='value(status.url)' 2>/dev/null || echo "")
+          echo "EVENT_STREAM_URL=${EVENT_STREAM_URL}" >> "$GITHUB_ENV"
+
       - name: Run migrations
         if: steps.deploy_config.outputs.enabled == 'true'
         run: |
@@ -152,8 +160,8 @@ jobs:
               --max-instances 3 \
               --service-account "${{ secrets.GCP_SERVICE_ACCOUNT }}" \
               --add-cloudsql-instances "${{ env.GCP_PROJECT_ID }}:${{ env.GCP_REGION }}:microservices-pg" \
-              --set-secrets "DATABASE_URL=OBSERVABOARD_DATABASE_URL:latest,SECRET_KEY=OBSERVABOARD_SECRET_KEY:latest" \
-              --set-env-vars "^#^ALLOWED_HOSTS=observaboard-5gcrg4oiza-uc.a.run.app,localhost#DEBUG=false#CORS_ALLOWED_ORIGINS=${{ vars.CORS_ALLOWED_ORIGINS }}" \
+              --set-secrets "DATABASE_URL=OBSERVABOARD_DATABASE_URL:latest,SECRET_KEY=OBSERVABOARD_SECRET_KEY:latest,EVENT_STREAM_JWT_SECRET=EVENT_STREAM_JWT_SECRET:latest" \
+              --set-env-vars "^#^ALLOWED_HOSTS=observaboard-5gcrg4oiza-uc.a.run.app,localhost#DEBUG=false#CORS_ALLOWED_ORIGINS=${{ vars.CORS_ALLOWED_ORIGINS }}${EVENT_STREAM_URL:+#EVENT_STREAM_URL=${EVENT_STREAM_URL}}" \
               --quiet && break
             echo "::warning::Deploy attempt $attempt failed. Retrying in $((attempt * 20))s..."
             sleep $((attempt * 20))

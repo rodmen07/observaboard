@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 
 from .models import ApiKey, Event
 from .serializers import ApiKeySerializer, EventSerializer, IngestSerializer
+from .stream_publisher import publish_to_stream
 from .tasks import classify_event
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,15 @@ class IngestView(APIView):
         )
 
         classify_event(str(event.id))
+
+        if django_settings.EVENT_STREAM_URL:
+            # Re-fetch so stream publisher sees the classified fields.
+            event.refresh_from_db()
+            publish_to_stream(
+                event,
+                stream_url=django_settings.EVENT_STREAM_URL,
+                jwt_secret=django_settings.EVENT_STREAM_JWT_SECRET,
+            )
 
         logger.info("Ingested event %s from %s (%s)", event.id, data["source"], data["event_type"])
 

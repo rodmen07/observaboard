@@ -209,3 +209,9 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# ---------------------------------------------------------------------------
+# Event stream publisher
+# ---------------------------------------------------------------------------
+EVENT_STREAM_URL = config("EVENT_STREAM_URL", default="")
+EVENT_STREAM_JWT_SECRET = config("EVENT_STREAM_JWT_SECRET", default="")
