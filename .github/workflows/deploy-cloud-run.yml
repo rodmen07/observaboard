@@ -145,6 +145,28 @@ jobs:
             --wait \
             --quiet
 
+      - name: Provision gateway API key
+        if: steps.deploy_config.outputs.enabled == 'true'
+        run: |
+          # Retrieve the API key from Secret Manager
+          API_KEY=$(gcloud secrets versions access latest --secret="OBSERVABOARD_API_KEY" --project="${{ env.GCP_PROJECT_ID }}")
+          
+          gcloud run jobs create "${{ env.SERVICE_NAME }}-apikey-${{ github.sha }}" \
+            --image "$IMAGE" \
+            --region "${{ env.GCP_REGION }}" \
+            --service-account "${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            --add-cloudsql-instances "${{ env.GCP_PROJECT_ID }}:${{ env.GCP_REGION }}:microservices-pg" \
+            --set-secrets "DATABASE_URL=OBSERVABOARD_DATABASE_URL:latest,SECRET_KEY=OBSERVABOARD_SECRET_KEY:latest" \
+            --set-env-vars "ALLOWED_HOSTS=localhost,DEBUG=false" \
+            --command "python" \
+            --args "manage.py,create_gateway_api_key,--idempotent,--key,${API_KEY}" \
+            --max-retries 1 \
+            --quiet
+          gcloud run jobs execute "${{ env.SERVICE_NAME }}-apikey-${{ github.sha }}" \
+            --region "${{ env.GCP_REGION }}" \
+            --wait \
+            --quiet
+
       - name: Deploy to Cloud Run
         if: steps.deploy_config.outputs.enabled == 'true'
         run: |
