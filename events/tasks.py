@@ -3,8 +3,6 @@ import logging
 
 from django.contrib.postgres.search import SearchVector
 
-from celery import shared_task
-
 logger = logging.getLogger(__name__)
 
 
@@ -54,17 +52,10 @@ def _classify(source: str, event_type: str, payload: dict) -> tuple[str, str, st
     return category, severity, summary
 
 
-@shared_task(
-    bind=True,
-    max_retries=3,
-    autoretry_for=(Exception,),
-    retry_backoff=True,
-    retry_backoff_max=120,
-)
-def classify_event(self, event_id: str):
+def classify_event(event_id: str) -> None:
     """
     Classify an ingested event and update its search vector.
-    Runs asynchronously via Celery after ingest.
+    Runs synchronously in the request cycle (classification is pure Python).
     """
     from .models import Event
 
@@ -93,6 +84,6 @@ def classify_event(self, event_id: str):
             ),
         )
         logger.info("Classified event %s as %s/%s", event_id, category, severity)
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to classify event %s", event_id)
-        raise self.retry(exc=exc)
+        raise

@@ -25,7 +25,7 @@ class HealthView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    @extend_schema(summary="Health check", description="Returns status of API, database, and Redis.")
+    @extend_schema(summary="Health check", description="Returns status of API and database.")
     def get(self, request):
         checks = {"api": "ok"}
 
@@ -35,15 +35,6 @@ class HealthView(APIView):
         except Exception:
             logger.exception("Health check: database connection failed")
             checks["database"] = "error"
-
-        try:
-            import redis
-            r = redis.from_url(django_settings.CELERY_BROKER_URL)
-            r.ping()
-            checks["redis"] = "ok"
-        except Exception:
-            logger.exception("Health check: Redis ping failed")
-            checks["redis"] = "error"
 
         overall = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
         status_code = 200 if overall == "ok" else 503
@@ -55,7 +46,7 @@ class IngestView(APIView):
     """
     POST /api/ingest/
     Accepts webhook payloads. Authenticated via API key or JWT.
-    Immediately stores the raw event, then enqueues async classification.
+    Stores the raw event and classifies it synchronously.
     """
     permission_classes = [IsAuthenticated]
     throttle_scope = "ingest"
@@ -72,7 +63,7 @@ class IngestView(APIView):
             raw_payload=data["payload"],
         )
 
-        classify_event.delay(str(event.id))
+        classify_event(str(event.id))
 
         logger.info("Ingested event %s from %s (%s)", event.id, data["source"], data["event_type"])
 

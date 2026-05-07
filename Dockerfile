@@ -29,6 +29,6 @@ ENV SECRET_KEY=
 
 USER app
 
-EXPOSE 8000
+EXPOSE 8080
 
-CMD ["gunicorn", "observaboard.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
+CMD ["gunicorn", "observaboard.wsgi:application", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "60"]
