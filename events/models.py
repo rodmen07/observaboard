@@ -45,7 +45,7 @@ class Event(models.Model):
     event_type = models.CharField(max_length=120, db_index=True)
     raw_payload = models.JSONField()
 
-    # Set by Celery classification task
+    # Set by Cloud Tasks classification callback
     classified = models.BooleanField(default=False)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, blank=True)
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default="low")

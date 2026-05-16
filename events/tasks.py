@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 from django.contrib.postgres.search import SearchVector
 
@@ -87,3 +88,48 @@ def classify_event(event_id: str) -> None:
     except Exception:
         logger.exception("Failed to classify event %s", event_id)
         raise
+
+
+def enqueue_classify_task(event_id: str) -> None:
+    """
+    Enqueue a Cloud Tasks HTTP task to classify the event asynchronously.
+
+    When CLOUD_TASKS_QUEUE is not set (local dev / CI), falls back to a direct
+    synchronous call so no GCP credentials are required.
+    """
+    queue_name = os.environ.get("CLOUD_TASKS_QUEUE", "")
+    if not queue_name:
+        classify_event(event_id)
+        return
+
+    project = os.environ.get("GCP_PROJECT_ID", "")
+    location = os.environ.get("GCP_REGION", "us-central1")
+    service_url = os.environ.get("CLOUD_RUN_SERVICE_URL", "").rstrip("/")
+    sa_email = os.environ.get("CLOUD_TASKS_SA_EMAIL", "")
+
+    try:
+        from google.cloud import tasks_v2
+        from google.protobuf import duration_pb2
+
+        client = tasks_v2.CloudTasksClient()
+        parent = client.queue_path(project, location, queue_name)
+
+        task = {
+            "http_request": {
+                "http_method": tasks_v2.HttpMethod.POST,
+                "url": f"{service_url}/api/tasks/classify/",
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"event_id": event_id}).encode(),
+                "oidc_token": {
+                    "service_account_email": sa_email,
+                    "audience": service_url,
+                },
+            },
+            "dispatch_deadline": duration_pb2.Duration(seconds=30),
+        }
+
+        client.create_task(request={"parent": parent, "task": task})
+        logger.info("Enqueued classify task for event %s", event_id)
+    except Exception:
+        logger.exception("Failed to enqueue classify task for event %s; classifying inline", event_id)
+        classify_event(event_id)

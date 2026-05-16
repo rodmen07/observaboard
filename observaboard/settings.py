@@ -215,3 +215,14 @@ SPECTACULAR_SETTINGS = {
 # ---------------------------------------------------------------------------
 EVENT_STREAM_URL = config("EVENT_STREAM_URL", default="")
 EVENT_STREAM_JWT_SECRET = config("EVENT_STREAM_JWT_SECRET", default="")
+
+# ---------------------------------------------------------------------------
+# Cloud Tasks (async event classification)
+# ---------------------------------------------------------------------------
+# Set CLOUD_TASKS_QUEUE to enable async dispatch via GCP Cloud Tasks.
+# When unset, classification runs synchronously in the request thread (dev/CI).
+CLOUD_TASKS_QUEUE = config("CLOUD_TASKS_QUEUE", default="")
+CLOUD_TASKS_SA_EMAIL = config("CLOUD_TASKS_SA_EMAIL", default="")
+CLOUD_RUN_SERVICE_URL = config("CLOUD_RUN_SERVICE_URL", default="")
+GCP_PROJECT_ID = config("GCP_PROJECT_ID", default="")
+GCP_REGION = config("GCP_REGION", default="us-central1")

@@ -16,9 +16,36 @@ from rest_framework.views import APIView
 from .models import ApiKey, Event
 from .serializers import ApiKeySerializer, EventSerializer, IngestSerializer
 from .stream_publisher import publish_to_stream
-from .tasks import classify_event
+from .tasks import classify_event, enqueue_classify_task
 
 logger = logging.getLogger(__name__)
+
+
+def _verify_cloud_tasks_token(auth_header: str) -> bool:
+    """
+    Verify the OIDC token Cloud Tasks attaches to callback requests.
+
+    When CLOUD_TASKS_SA_EMAIL is not configured (local dev / CI) the check is
+    skipped so tests can hit the endpoint without GCP credentials.
+    """
+    sa_email = getattr(django_settings, "CLOUD_TASKS_SA_EMAIL", "")
+    if not sa_email:
+        return True
+
+    if not auth_header.startswith("Bearer "):
+        return False
+
+    token = auth_header[7:]
+    try:
+        import google.auth.transport.requests
+        import google.oauth2.id_token
+
+        request = google.auth.transport.requests.Request()
+        claims = google.oauth2.id_token.verify_oauth2_token(token, request)
+        return claims.get("email") == sa_email
+    except Exception:
+        logger.exception("Cloud Tasks OIDC token verification failed")
+        return False
 
 
 @extend_schema(tags=["health"])
@@ -47,7 +74,7 @@ class IngestView(APIView):
     """
     POST /api/ingest/
     Accepts webhook payloads. Authenticated via API key or JWT.
-    Stores the raw event and classifies it synchronously.
+    Stores the raw event and enqueues it for async classification via Cloud Tasks.
     """
     permission_classes = [IsAuthenticated]
     throttle_scope = "ingest"
@@ -64,16 +91,8 @@ class IngestView(APIView):
             raw_payload=data["payload"],
         )
 
-        classify_event(str(event.id))
-
-        if django_settings.EVENT_STREAM_URL:
-            # Re-fetch so stream publisher sees the classified fields.
-            event.refresh_from_db()
-            publish_to_stream(
-                event,
-                stream_url=django_settings.EVENT_STREAM_URL,
-                jwt_secret=django_settings.EVENT_STREAM_JWT_SECRET,
-            )
+        # Enqueue async classification via Cloud Tasks (falls back to inline in dev).
+        enqueue_classify_task(str(event.id))
 
         logger.info("Ingested event %s from %s (%s)", event.id, data["source"], data["event_type"])
 
@@ -81,6 +100,43 @@ class IngestView(APIView):
             {"id": str(event.id), "status": "accepted"},
             status=status.HTTP_202_ACCEPTED,
         )
+
+
+@extend_schema(tags=["tasks"])
+class ClassifyCallbackView(APIView):
+    """
+    POST /api/tasks/classify/
+    Invoked by Cloud Tasks. Verifies the OIDC token, classifies the event,
+    and publishes it to event-stream-service.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    @extend_schema(exclude=True)
+    def post(self, request):
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        if not _verify_cloud_tasks_token(auth_header):
+            logger.warning("Cloud Tasks callback rejected: invalid token")
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        event_id = request.data.get("event_id")
+        if not event_id:
+            return Response({"error": "Missing event_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        classify_event(str(event_id))
+
+        if django_settings.EVENT_STREAM_URL:
+            try:
+                event = Event.objects.get(id=event_id)
+                publish_to_stream(
+                    event,
+                    stream_url=django_settings.EVENT_STREAM_URL,
+                    jwt_secret=django_settings.EVENT_STREAM_JWT_SECRET,
+                )
+            except Event.DoesNotExist:
+                logger.warning("Classify callback: event %s not found for stream publish", event_id)
+
+        return Response({"classified": str(event_id)}, status=status.HTTP_200_OK)
 
 
 @method_decorator(cache_control(private=True, max_age=30), name="dispatch")

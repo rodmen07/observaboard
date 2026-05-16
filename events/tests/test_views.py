@@ -158,3 +158,49 @@ class TestApiKeyDetailView:
     def test_nonexistent_key(self, admin_client_drf):
         response = admin_client_drf.patch("/api/keys/99999/", {"name": "x"}, format="json")
         assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestClassifyCallbackView:
+    """
+    Tests for POST /api/tasks/classify/ - the Cloud Tasks callback.
+
+    CLOUD_TASKS_SA_EMAIL is not set in CI, so token verification is skipped
+    and every request passes the auth check automatically.
+    """
+
+    def test_classifies_event(self, api_client):
+        from .factories import EventFactory
+        event = EventFactory(source="github", event_type="deploy.success")
+        response = api_client.post(
+            "/api/tasks/classify/",
+            {"event_id": str(event.pk)},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["classified"] == str(event.pk)
+        event.refresh_from_db()
+        assert event.classified is True
+
+    def test_missing_event_id(self, api_client):
+        response = api_client.post("/api/tasks/classify/", {}, format="json")
+        assert response.status_code == 400
+
+    def test_nonexistent_event_returns_200(self, api_client):
+        # classify_event is tolerant of missing events; callback should not 500.
+        response = api_client.post(
+            "/api/tasks/classify/",
+            {"event_id": "00000000-0000-0000-0000-000000000000"},
+            format="json",
+        )
+        assert response.status_code == 200
+
+    def test_invalid_token_rejected(self, api_client, settings):
+        settings.CLOUD_TASKS_SA_EMAIL = "tasks-sa@project.iam.gserviceaccount.com"
+        response = api_client.post(
+            "/api/tasks/classify/",
+            {"event_id": "00000000-0000-0000-0000-000000000000"},
+            format="json",
+            HTTP_AUTHORIZATION="Bearer not-a-real-token",
+        )
+        assert response.status_code == 401
